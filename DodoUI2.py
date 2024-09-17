@@ -74,43 +74,42 @@ if WINDOWED:
 # 绑定回车键到发送消息
 user_input.bind("<Return>", lambda event: send_message(user_input.get()))
 
-# 发送消息到 API
 def send_message(message):
     if message:
         user_input.delete(0, "end")  # 清空输入框
         # 在新线程中调用 API 以避免阻塞 UI
         threading.Thread(target=get_ai_response, args=(message,)).start()
 
-
 def get_ai_response(message):
     file_path = cwd + '\\TEMP\\latest_reply.txt'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, "w", encoding="utf-8-sig") as f:
-        f.write('')
+        f.write('')  # 清空文件内容
+    
+    chat_history = [] # 初始化聊天历史
+
     result = client.predict(
         message=message,
+        chat_history=chat_history,  # 传递聊天历史
         audio=None,
         image=None,
         api_name="/predict"
     )
+
     print(result)
-    ai_response = result[0][-1][-1]
+    
+    chat_history = result[0] # 更新聊天历史
+    ai_response = result[0][-1][-1] # 获取 AI 的文本回复
+    audio_files = result[2] # 获取音频文件列表
+
     print(ai_response)
-    parts = ai_response.split("[[")
-    if len(parts) > 1:
-        normal_text = parts[0]
-        highlighted_parts = []
-        for part in parts[1:]:
-            highlighted_text, remaining_text = part.split("]]", 1)
-            highlighted_parts.append(highlighted_text)
-            highlighted_text = highlighted_parts[0]
-            normal_text += remaining_text
-    else:
-        normal_text = ai_response
-        highlighted_text = "Reply"
+
+    # 将 AI 回复写入文件
     with open(file_path, "w", encoding="utf-8-sig") as f:
         f.write(ai_response)
-    subprocess.run('cmd /c ' + PYTHON + ' ' + cwd + '\\Dodo_msgbox.py "' + file_path + '"')
+
+    # 调用 Dodo_msgbox 并传递音频文件列表
+    subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path] + audio_files)
 
 while running:
     root.update_idletasks()
