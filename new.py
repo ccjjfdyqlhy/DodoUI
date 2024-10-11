@@ -1,5 +1,5 @@
 # Dodo Chat UI
-# V3.1 update 241010
+# V3.2 update 241011
 
 CONNECT = False
 
@@ -19,7 +19,7 @@ customtkinter.set_default_color_theme("dark-blue")
 cwd = os.getcwd()
 
 root = customtkinter.CTk()
-root.geometry("1050x600")
+root.geometry("950x600")
 root.title("Dodo Hub")
 
 if CONNECT:
@@ -48,6 +48,7 @@ icon_paths = {
     "☑": cwd + "\\icons\\select.png",  # 添加批量选择图标
     "🗑️": cwd + "\\icons\\delete.png",  # 添加删除图标
     "❌": cwd + "\\icons\\cancel.png",  # 添加取消图标
+    "🔄": cwd + "\\icons\\rename.png",  # 添加重命名图标
 }
 
 icons = {}
@@ -62,7 +63,7 @@ for text, path in icon_paths.items():
 all_buttons = []
 
 for text, icon in icons.items():
-    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌"]:
+    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌", "🔄"]:
         continue
 
     button = customtkinter.CTkButton(
@@ -141,7 +142,7 @@ def refresh_interaction_list():
     saves_dir = os.path.join(cwd, "saves")
     if not os.path.exists(saves_dir):
         os.makedirs(saves_dir)
-    files = [f for f in os.listdir(saves_dir) if os.path.isfile(os.path.join(saves_dir, f))]
+    files = [f for f in os.listdir(saves_dir) if os.path.isfile(os.path.join(saves_dir, f)) and f.endswith(".din")]
 
     if not files:
         no_interactions_label = customtkinter.CTkLabel(interaction_list_content, text="没有交互记录", width=230)
@@ -176,7 +177,7 @@ def select_interaction(file):
     # TODO: 实现加载交互记录的功能
     print(f"选择了交互记录 {file}")
     if batch_mode:
-        select_file(file) # 仅在批量模式下调用 select_file
+        select_file(file)  # 仅在批量模式下调用 select_file
 
 
 def batch_operation():
@@ -186,6 +187,7 @@ def batch_operation():
     new_interaction_button.pack_forget()
     batch_select_button.pack_forget()
     delete_button.pack(side="left", pady=(0, 10), padx=(0, 5))
+    rename_button.pack(side="left", pady=(0, 10), padx=(0, 5))  # 显示重命名按钮
     cancel_button.pack(side="left", pady=(0, 10), padx=(5, 0))
 
 
@@ -205,6 +207,30 @@ def delete_interactions():
         exit_batch_mode()
 
 
+def rename_interaction():
+    """重命名选中的交互记录文件"""
+    global interaction_files
+    if len(selected_files) != 1:
+        tk.messagebox.showwarning("警告", "请选择一个要重命名的文件！")
+        return
+
+    old_filename = list(selected_files)[0]
+    new_filename = tk.simpledialog.askstring("重命名", f"请输入新的文件名 (不包含 .din 后缀):\n当前文件名: {old_filename[:-4]}")
+    if new_filename is None or new_filename.strip() == "":
+        return  # 用户取消或输入空文件名
+
+    saves_dir = os.path.join(cwd, "saves")
+    new_filename = new_filename.strip() + ".din"
+    if os.path.exists(os.path.join(saves_dir, new_filename)):
+        tk.messagebox.showwarning("警告", f"文件名 {new_filename} 已存在！")
+        return
+
+    os.rename(os.path.join(saves_dir, old_filename), os.path.join(saves_dir, new_filename))
+    selected_files.clear()
+    refresh_interaction_list()
+    exit_batch_mode()
+
+
 def cancel_batch():
     """取消批量操作"""
     exit_batch_mode()
@@ -215,6 +241,7 @@ def exit_batch_mode():
     global batch_mode
     batch_mode = False
     delete_button.pack_forget()
+    rename_button.pack_forget()  # 隐藏重命名按钮
     cancel_button.pack_forget()
     new_interaction_button.pack(side="left", pady=(0, 10), padx=(0, 5))
     batch_select_button.pack(side="left", pady=(0, 10), padx=(5, 0))
@@ -278,6 +305,17 @@ delete_button = customtkinter.CTkButton(
     command=delete_interactions
 )
 
+# 重命名按钮
+rename_button = customtkinter.CTkButton(
+    master=bottom_buttons_frame,
+    image=icons["🔄"],
+    width=25,
+    text="",
+    fg_color="transparent",
+    hover_color="gray70",
+    command=rename_interaction
+)
+
 # 取消按钮
 cancel_button = customtkinter.CTkButton(
     master=bottom_buttons_frame,
@@ -301,7 +339,7 @@ ai_response_label.pack(pady=(10, 0))
 
 # 交互输入框移动到交互区底部
 user_input = customtkinter.CTkEntry(interaction_frame, width=700, height=35,
-                                    fg_color="gray70", text_color="white",
+                                    fg_color="white", text_color="black",
                                     font=("Microsoft YaHei", 15),
                                     placeholder_text="给 Dodo 发送指令...")
 user_input.pack(side="bottom", pady=(0, 10))
