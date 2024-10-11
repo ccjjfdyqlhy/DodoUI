@@ -7,5 +7,5 @@ WIDTH = 700
 MOVE_RIGHT = 100
 MOVE_DOWN = -50
 DESKTOP = False
-WINDOWED = False
+WINDOWED = True
 HOTKEY = "alt+enter"
