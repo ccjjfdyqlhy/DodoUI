@@ -57,7 +57,11 @@ def refresh_interaction_list():
             button = customtkinter.CTkButton(
                 interaction_list_content,
                 text=file[:-4],
+                height=60,
                 width=230,  # 设置按钮宽度
+                fg_color="gray70",
+                hover_color="gray60",
+                font=("Microsoft YaHei UI Light", 14),
                 command=lambda fn=file: select_interaction(fn)  # 调用 select_interaction
             )
             button.pack(pady=(5, 0))
@@ -95,10 +99,10 @@ def delete_interactions():
     """删除选中的交互记录文件"""
     global interaction_files
     if not selected_files:
-        tk.messagebox.showwarning("警告", "请选择要删除的文件！")
+        tk.messagebox.showwarning("警告", "请选择要删除的项！")
         return
 
-    if tk.messagebox.askyesno("确认删除", "确定要删除选中的文件吗？"):
+    if tk.messagebox.askyesno("确认删除", "确定要删除选中的项吗？"):
         saves_dir = os.path.join(cwd, "saves")
         for filename in selected_files:
             os.remove(os.path.join(saves_dir, filename))
@@ -110,18 +114,18 @@ def rename_interaction():
     """重命名选中的交互记录文件"""
     global interaction_files
     if len(selected_files) != 1:
-        tk.messagebox.showwarning("警告", "请选择一个要重命名的文件！")
+        tk.messagebox.showwarning("警告", "请选择一个要重命名的项！")
         return
 
     old_filename = list(selected_files)[0]
-    new_filename = tk.simpledialog.askstring("重命名", f"请输入新的文件名 (不包含 .din 后缀):\n当前文件名: {old_filename[:-4]}")
+    new_filename = tk.simpledialog.askstring("重命名", f"请输入新的交互标题")
     if new_filename is None or new_filename.strip() == "":
         return  # 用户取消或输入空文件名
 
     saves_dir = os.path.join(cwd, "saves")
     new_filename = new_filename.strip() + ".din"
     if os.path.exists(os.path.join(saves_dir, new_filename)):
-        tk.messagebox.showwarning("警告", f"文件名 {new_filename} 已存在！")
+        tk.messagebox.showwarning("警告", f"话题名称 {new_filename} 已存在！")
         return
 
     os.rename(os.path.join(saves_dir, old_filename), os.path.join(saves_dir, new_filename))
@@ -261,7 +265,7 @@ for text, path in icon_paths.items():
 all_buttons = []
 
 for text, icon in icons.items():
-    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌", "🔄", "📢", "🔇", "🤔"]:
+    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌", "📝", "🔄", "📢", "🔇", "🤔"]:
         continue
 
     button = customtkinter.CTkButton(
@@ -396,7 +400,7 @@ input_frame.pack(side="bottom", fill="x", pady=(0, 10))
 user_input = customtkinter.CTkEntry(input_frame, width=500, height=35,
                                     fg_color="white", text_color="black",
                                     font=("Microsoft YaHei", 15),
-                                    placeholder_text="给 Dodo 发送指令...")
+                                    placeholder_text="Instruct Dodo...")
 user_input.pack(side="left", padx=(0, 10), expand=True, fill="x") # 使用 expand 和 fill 使输入框占据剩余空间
 
 # 推理按钮
