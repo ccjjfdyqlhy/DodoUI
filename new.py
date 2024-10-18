@@ -250,7 +250,8 @@ icon_paths = {
     "📢": cwd + "\\icons\\tts_on.png",  # 添加 TTS 启用图标
     "🔇": cwd + "\\icons\\tts_off.png", # 添加 TTS 关闭图标
     "🔄": cwd + "\\icons\\restart.png",  # 添加重置上下文图标
-    "🤔": cwd + "\\icons\\inference.png",  # 添加推理图标 
+    "🤔": cwd + "\\icons\\inference.png",  # 添加推理图标
+    "🪟": cwd + "\\icons\\dwicon.png", # 添加实况窗图标
 }
 
 icons = {}
@@ -265,7 +266,7 @@ for text, path in icon_paths.items():
 all_buttons = []
 
 for text, icon in icons.items():
-    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌", "📝", "🔄", "📢", "🔇", "🤔"]:
+    if text in ["👤", "⚙️", "➕", "☑", "🗑️", "❌", "📝", "🔄", "📢", "🔇", "🤔", "🪟"]:
         continue
 
     button = customtkinter.CTkButton(
@@ -309,9 +310,33 @@ tabs[current_tab].pack(fill="both", expand=True)
 interaction_list_frame = customtkinter.CTkFrame(tabs[0], width=250)
 interaction_list_frame.pack(side="left", fill="y")
 
+# 实况窗
+live_window_frame = customtkinter.CTkFrame(interaction_list_frame, fg_color="gray70")
+live_window_frame.pack(pady=(10, 10), padx=10, fill="x")
+
+live_window_icon = customtkinter.CTkLabel(live_window_frame, image=icons["🪟"], text="")
+live_window_icon.pack(anchor="w", pady=(5, 0), padx=(10, 0))
+
+# 实况窗内容 (示例)
+live_window_content = customtkinter.CTkLabel(live_window_frame, text="Welcome to Dodo UI!\nThis is a AI chatbot UI built with Python and Tkinter.", wraplength=210)
+live_window_content.pack(pady=(5, 5), padx=10)
+
+# 开启新对话按钮
+new_dialogue_button = customtkinter.CTkButton(
+    live_window_frame,
+    text="开启新对话",
+    height=20,
+    width=210,  # 设置按钮宽度
+    #fg_color="gray70",
+    #hover_color="gray60",
+    font=("Microsoft YaHei UI Light", 14),
+    command=add_interaction
+)
+new_dialogue_button.pack(pady=(5, 10), padx=10)
+
 # 列表内容区域
 interaction_list_content = customtkinter.CTkFrame(interaction_list_frame, width=250)
-interaction_list_content.pack(pady=(10, 0), fill="both", expand=True)
+interaction_list_content.pack(pady=(0, 0), fill="both", expand=True)
 
 # 使用枚举按钮显示列表
 interaction_buttons = []
