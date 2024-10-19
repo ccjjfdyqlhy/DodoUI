@@ -49,6 +49,20 @@ def play_audio(file_path):
 def close():
     root.destroy()
 
+def add_message_to_ui(message, sender):
+    """将消息添加到 UI"""
+    if sender == "user":
+        message_box = customtkinter.CTkTextbox(interaction_frame, width=700, wrap="word")
+        message_box.insert("end", message)
+        message_box.configure(state="disabled")  # 设置为只读
+        message_box.pack(pady=(5, 0), anchor="e")  # 用户消息靠右
+    elif sender == "ai":
+        message_box = customtkinter.CTkTextbox(interaction_frame, width=700, wrap="word")
+        message_box.insert("end", message)
+        message_box.configure(state="disabled")  # 设置为只读
+        message_box.pack(pady=(5, 0), anchor="w")  # AI 消息靠左
+
+
 def switch_tab(tab_index):
     global current_tab
     tabs[current_tab].pack_forget()
@@ -195,6 +209,10 @@ def select_file(filename):
 
 def send_message(message):
     if message:
+        # 在发送消息之前，将消息添加到聊天历史和 UI
+        chat_history.append([message, ""])  # 添加用户消息，AI 回复为空
+        add_message_to_ui(message, "user")
+
         user_input.delete(0, "end")
         threading.Thread(target=get_ai_response, args=(message,)).start()
 
@@ -238,11 +256,9 @@ def get_ai_response(message):
         with open(file_path, "w", encoding="utf-8-sig") as f:
             f.write(last_output)  # 将最终回复写入文件
 
-        # 更新 UI，将新的 AI 回复添加到现有文本后
-        current_text = ai_response_label.cget("text")
-        if current_text:  # 如果已经有内容，添加换行
-            current_text += "\n\n"
-        ai_response_label.configure(text=current_text + last_output)
+        # 更新 UI，将新的 AI 回复添加到聊天历史和 UI
+        chat_history[-1][1] = last_output  # 更新聊天历史中的 AI 回复
+        add_message_to_ui(last_output, "ai")
 
         # 根据 tts_enabled 决定是否播放音频
         if tts_enabled:
@@ -252,11 +268,9 @@ def get_ai_response(message):
             pass
     except Exception as e:
         ai_response = f"错误: {e}"
-        # 将错误信息添加到现有文本后
-        current_text = ai_response_label.cget("text")
-        if current_text:
-            current_text += "\n\n"
-        ai_response_label.configure(text=current_text + ai_response)
+        # 将错误信息添加到聊天历史和 UI
+        chat_history[-1][1] = ai_response  # 更新聊天历史中的 AI 回复
+        add_message_to_ui(ai_response, "ai")
         audio_files = []
 
 
@@ -273,7 +287,15 @@ def reset_context():
     """重置上下文"""
     global chat_history
     chat_history = []
-    ai_response_label.configure(text="")  # 清空 AI 回复区域
+
+    # 清空交互区域的所有消息框
+    try:
+        for widget in interaction_frame.winfo_children():
+            if isinstance(widget, customtkinter.CTkTextbox):
+                widget.destroy()
+    except Exception as e:
+        print(f"Error while resetting context: {e}")
+
     print("重置上下文")
 
 def extract_code(output):
@@ -334,11 +356,11 @@ def load_interaction(filename):
                 if i + 1 < len(lines):
                     chat_history.append([lines[i].strip()[4:], lines[i+1].strip()[3:]]) # 移除"用户:"和"AI:"
 
-        # 更新 AI 回复区域，显示最后一条 AI 回复
-        if chat_history:
-            ai_response_label.configure(text=chat_history[-1][1])
-        else:
-            ai_response_label.configure(text="") 
+        # 更新 UI，显示所有消息
+        for user_message, ai_message in chat_history:
+            add_message_to_ui(user_message, "user")
+            if ai_message:  # AI 消息可能为空
+                add_message_to_ui(ai_message, "ai")
     except Exception as e:
         print(f"加载交互记录失败: {e}")
         tk.messagebox.showerror("错误", f"加载交互记录失败: {e}")
@@ -541,9 +563,6 @@ refresh_interaction_list()
 # 交互区
 interaction_frame = customtkinter.CTkFrame(tabs[0])
 interaction_frame.pack(side="right", fill="both", expand=True)
-
-ai_response_label = customtkinter.CTkLabel(interaction_frame, text="", wraplength=700)
-ai_response_label.pack(pady=(10, 0))
 
 # 交互输入框和按钮框架
 input_frame = customtkinter.CTkFrame(interaction_frame)
