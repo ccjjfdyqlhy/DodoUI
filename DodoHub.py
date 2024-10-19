@@ -1,7 +1,7 @@
 # Dodo Chat UI
 # V3.1 update 241010
 
-CONNECT = False
+CONNECT = True
 
 import customtkinter
 import pywinstyles
@@ -13,6 +13,9 @@ import subprocess
 import os
 from Dodo_config import *
 from PIL import Image, ImageTk
+import re
+import datetime
+import time
 
 customtkinter.set_appearance_mode("light")
 customtkinter.set_default_color_theme("dark-blue")
@@ -84,6 +87,8 @@ def select_interaction(file):
     print(f"选择了交互记录 {file}")
     if batch_mode:
         select_file(file)  # 仅在批量模式下调用 select_file
+    else:
+        load_interaction(file)
 
 def batch_operation():
     """进入批量操作模式"""
@@ -176,32 +181,50 @@ def get_ai_response(message):
     with open(file_path, "w", encoding="utf-8-sig") as f:
         f.write('')
 
-    chat_history = []
+    global chat_history  # 使用全局的 chat_history
     try:
         result = client.predict(
             message=message,
             chat_history=chat_history,
             audio=None,
             image=None,
+            iostream="",
             api_name="/predict"
         )
-        chat_history = result[0]
-        ai_response = result[0][-1][-1]
-        audio_files = result[2]
+        chat_history, _, _ = result
+        last_output = chat_history[-1][1]
+
+        # 判断回复是否包含代码
+        if is_code_response(last_output):
+            # 运行代码并获取输出
+            iostream = run_command_or_code(last_output)
+            if iostream:
+                # 将代码执行结果发送到服务端
+                result = client.predict(
+                    message="",
+                    audio=None,
+                    image=None,
+                    iostream=iostream,
+                    api_name="/predict"
+                )
+                chat_history, _, _ = result
+                last_output = chat_history[-1][1]  # 更新 last_output
+
+        with open(file_path, "w", encoding="utf-8-sig") as f:
+            f.write(last_output)  # 将最终回复写入文件
+
+        ai_response_label.configure(text=last_output)  # 更新 UI
+
+        # 根据 tts_enabled 决定是否播放音频
+        if tts_enabled:
+            subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path] + result[2])  # 传递音频文件列表
+        else:
+            subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path])  # 不播放音频
     except Exception as e:
         ai_response = f"错误: {e}"
+        ai_response_label.configure(text=ai_response)
         audio_files = []
 
-    with open(file_path, "w", encoding="utf-8-sig") as f:
-        f.write(ai_response)
-
-    ai_response_label.configure(text=ai_response)
-
-    # 根据 tts_enabled 决定是否播放音频
-    if tts_enabled:
-        subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path] + audio_files)
-    else:
-        subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path]) # 不播放音频
 
 def toggle_tts():
     """切换 TTS 启用/关闭状态"""
@@ -213,15 +236,86 @@ def toggle_tts():
         tts_button.configure(image=icons["🔇"])
 
 def reset_context():
-    """重置上下文 (需要实现)"""
-    # TODO: 实现重置上下文的逻辑，例如清空 chat_history 变量
+    """重置上下文"""
+    global chat_history
+    chat_history = []
+    ai_response_label.configure(text="")  # 清空 AI 回复区域
     print("重置上下文")
+
+def extract_code(output):
+    """提取代码块中的代码"""
+    match = re.search(r"```python(.*?)```", output, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+def run_command_or_code(output):
+    """运行命令或代码并返回输出"""
+    iostream = ""
+    if output.startswith('cmd /c'):
+        folder = cwd + "\\TEMP\\"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        with open(folder + 'latest_cmd.txt', "w", encoding="utf-8-sig") as f:
+            f.write(output)
+        subprocess.Popen([PYTHON, cwd + '\\cmdctrl.py'])  # 假设 cmdctrl.py 用于执行命令并输出到 cmd_output.txt
+        time.sleep(0.1)
+        with open(folder + 'cmd_output.txt', "r", encoding="utf-8-sig") as f:
+            iostream = f.read()
+    elif output.startswith('```python'):
+        folder = cwd + "\\generated\\program_history"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        history_file_path = os.path.join(folder, f"program{time_str}.py")
+        code_content = extract_code(output)
+        with open(history_file_path, "w", encoding="utf-8-sig") as f:
+            f.write(code_content)
+        if not os.path.exists('TEMP'):
+            os.makedirs('TEMP')
+        with open(cwd + '\\TEMP\\historydest.txt', 'w', encoding='utf-8') as f:
+            f.write(history_file_path)
+        coderunner = subprocess.Popen([PYTHON, cwd + '\\coderunner.py'], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) # 假设 coderunner.py 用于执行Python代码并输出结果
+        stdout, stderr = coderunner.communicate()
+        iostream = stdout.decode('gbk') + stderr.decode('gbk')
+    if iostream == '' or iostream == '[]':
+        iostream = '无输出，操作可能成功完成。'
+    return iostream
+
+def is_code_response(output):
+    """判断回复是否包含代码"""
+    return output.startswith('cmd /c') or output.startswith('```python')
+
+def load_interaction(filename):
+    """加载交互记录"""
+    global chat_history
+    saves_dir = os.path.join(cwd, "saves")
+    filepath = os.path.join(saves_dir, filename)
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            # 假设文件格式为每行一个消息，例如 "用户: 你好\nAI: 你好！"
+            lines = f.readlines()
+            chat_history = []
+            for i in range(0, len(lines), 2):
+                if i + 1 < len(lines):
+                    chat_history.append([lines[i].strip()[4:], lines[i+1].strip()[3:]]) # 移除"用户:"和"AI:"
+
+        # 更新 AI 回复区域，显示最后一条 AI 回复
+        if chat_history:
+            ai_response_label.configure(text=chat_history[-1][1])
+        else:
+            ai_response_label.configure(text="") 
+    except Exception as e:
+        print(f"加载交互记录失败: {e}")
+        tk.messagebox.showerror("错误", f"加载交互记录失败: {e}")
 
 # 主程序
 
 root = customtkinter.CTk()
 root.geometry("950x600")
 root.title("Dodo Hub")
+
+ctk = customtkinter  # 简化名称
 
 if CONNECT:
     try:
@@ -463,6 +557,9 @@ reset_context_button = customtkinter.CTkButton(
 reset_context_button.pack(side="left", padx=(0, 10))
 
 user_input.bind("<Return>", lambda event: send_message(user_input.get()))
+
+# 初始化聊天历史
+chat_history = []
 
 # 其他 Tab 内容不变
 tabs[1].pack_propagate(0)

@@ -97,12 +97,3 @@ while True:
     else:
         # 打印AI的回复
         print(f"AI: {last_output}")
-
-    # 打印当前聊天历史
-    print("--------------------")
-    for user_msg, ai_msg in chat_history:
-        if user_msg:
-            print(f"用户: {user_msg}")
-        if ai_msg:
-            print(f"AI: {ai_msg}")
-    print("--------------------")
