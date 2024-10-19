@@ -1,9 +1,9 @@
 from gradio_client import Client, handle_file
-import subprocess, re, os, datetime
+import subprocess, re, os, datetime, time
+from Dodo_config import PYTHON,DSN_IP
 
-PYTHON = "python"
 cwd = os.getcwd()
-client = Client("http://127.0.0.1:7860/")
+client = Client(DSN_IP)
 
 def extract_code(output):
     """提取代码块中的代码"""
@@ -22,6 +22,7 @@ def run_command_or_code(output):
         with open(folder + 'latest_cmd.txt', "w", encoding="utf-8-sig") as f:
             f.write(output)
         subprocess.Popen([PYTHON, cwd + '\\cmdctrl.py'])  # 假设 cmdctrl.py 用于执行命令并输出到 cmd_output.txt
+        time.sleep(0.1)
         with open(folder + 'cmd_output.txt', "r", encoding="utf-8-sig") as f:
             iostream = f.read()
     elif output.startswith('```python'):

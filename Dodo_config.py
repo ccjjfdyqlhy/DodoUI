@@ -1,8 +1,8 @@
 
 # Dodo UI Config File
 
-PYTHON = r"<...>/python.exe"
-DSN_IP = "http://127.0.0.1:7860/"
+PYTHON = r"python"
+DSN_IP = "https://706acdbbb506496a1c.gradio.live/"
 WIDTH = 700
 MOVE_RIGHT = 100
 MOVE_DOWN = -50
