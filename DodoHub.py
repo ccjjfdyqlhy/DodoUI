@@ -14,14 +14,37 @@ import os
 from Dodo_config import *
 from PIL import Image, ImageTk
 import re
+import pyaudio
+import wave
 import datetime
 import time
 
 customtkinter.set_appearance_mode("light")
 customtkinter.set_default_color_theme("dark-blue")
 cwd = os.getcwd()
+p = pyaudio.PyAudio()
 
 # 函数定义
+
+def play_audio(file_path):
+    """播放音频文件"""
+    try:
+        wf = wave.open(file_path, 'rb')
+        stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                        channels=wf.getnchannels(),
+                        rate=wf.getframerate(),
+                        output=True)
+
+        data = wf.readframes(1024)
+        while data:
+            stream.write(data)
+            data = wf.readframes(1024)
+
+        stream.stop_stream()
+        stream.close()
+
+    except Exception as e:
+        print(f"播放音频文件 {file_path} 出错: {e}")
 
 def close():
     root.destroy()
@@ -183,12 +206,14 @@ def get_ai_response(message):
 
     global chat_history  # 使用全局的 chat_history
     try:
+        print('Predicting with tts enabled: '+str(tts_enabled))
         result = client.predict(
             message=message,
             chat_history=chat_history,
             audio=None,
             image=None,
             iostream="",
+            silent=not(tts_enabled),
             api_name="/predict"
         )
         chat_history, _, _ = result
@@ -213,16 +238,25 @@ def get_ai_response(message):
         with open(file_path, "w", encoding="utf-8-sig") as f:
             f.write(last_output)  # 将最终回复写入文件
 
-        ai_response_label.configure(text=last_output)  # 更新 UI
+        # 更新 UI，将新的 AI 回复添加到现有文本后
+        current_text = ai_response_label.cget("text")
+        if current_text:  # 如果已经有内容，添加换行
+            current_text += "\n\n"
+        ai_response_label.configure(text=current_text + last_output)
 
         # 根据 tts_enabled 决定是否播放音频
         if tts_enabled:
-            subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path] + result[2])  # 传递音频文件列表
+            for file in result[2]:
+                play_audio(file)
         else:
-            subprocess.run([PYTHON, cwd + '\\Dodo_msgbox.py', file_path])  # 不播放音频
+            pass
     except Exception as e:
         ai_response = f"错误: {e}"
-        ai_response_label.configure(text=ai_response)
+        # 将错误信息添加到现有文本后
+        current_text = ai_response_label.cget("text")
+        if current_text:
+            current_text += "\n\n"
+        ai_response_label.configure(text=current_text + ai_response)
         audio_files = []
 
 
