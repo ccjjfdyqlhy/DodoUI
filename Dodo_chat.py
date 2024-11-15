@@ -2,20 +2,17 @@ import customtkinter
 from gradio_client import Client
 import threading
 import tkinter as tk
-import pyaudio
-import wave
-import os
-import re
 import subprocess
 import datetime
 import pywinstyles
 import time
 from PIL import Image
 from tkinter import filedialog
-from Dodo_config import *
+from client_utils import *
 
 # Set this one to False if during testing
 CONNECT = True
+DEBUG = True
 
 customtkinter.set_appearance_mode("light")
 customtkinter.set_default_color_theme("dark-blue")
@@ -24,28 +21,6 @@ action_cnt = 0
 p = pyaudio.PyAudio()
 recording = False
 audio_frames = []
-
-# 函数定义
-
-def play_audio(file_path):
-    """播放音频文件"""
-    try:
-        wf = wave.open(file_path, 'rb')
-        stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                        channels=wf.getnchannels(),
-                        rate=wf.getframerate(),
-                        output=True)
-
-        data = wf.readframes(1024)
-        while data:
-            stream.write(data)
-            data = wf.readframes(1024)
-
-        stream.stop_stream()
-        stream.close()
-
-    except Exception as e:
-        print(f"播放音频文件 {file_path} 出错: {e}")
 
 def close():
     root.destroy()
@@ -127,31 +102,6 @@ def get_ai_response(message=None, audio_file=None, image_file=None, iostream='')
         chat_history[-1][1] = ai_response
         add_message_to_ui(ai_response, "系统")
 
-def toggle_tts():
-    """切换 TTS 启用/关闭状态"""
-    global tts_enabled
-    tts_enabled = not tts_enabled
-    if tts_enabled:
-        tts_button.configure(image=icons["📢"])
-    else:
-        tts_button.configure(image=icons["🔇"])
-
-def reset_context():
-    """重置上下文"""
-    global chat_history
-    chat_history = []
-    chat_history_text.configure(state="normal")
-    chat_history_text.delete("1.0", "end")
-    chat_history_text.configure(state="disabled")
-    print("重置上下文")
-
-def extract_code(output):
-    """提取代码块中的代码"""
-    match = re.search(r"```python(.*?)```", output, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return ""
-
 def run_command_or_code(output,action_cnt):
     """运行命令或代码并返回输出"""
     iostream = ""
@@ -186,21 +136,63 @@ def run_command_or_code(output,action_cnt):
         stdout, stderr = coderunner.communicate()
         iostream = stdout.decode('gbk') + stderr.decode('gbk')
         print('Executed code')
+    elif output.startswith('[SFBYNAME]'): # Should be client-side
+        process = output.split(' ')
+        if DEBUG: print('[ 以标准文件名为索引检索：' + process[1] + ' ]')
+        iostream = str(search_file_by_name(process[1]))
+        if DEBUG: print(iostream)
+        if DEBUG: print('[ 检索完成 ]')
+    elif output.startswith('[SFBYKIND]'): # Should be client-side
+        process = output.split(' ')
+        if DEBUG: print('[ 以文件类型为索引检索：' + process[1] + ', Keyword: ' + process[2] + ' ]')
+        iostream = str(search_file_by_kind(process[1], process[2]))
+        if DEBUG: print(iostream)
+        if DEBUG: print('[ 检索完成 ]')
+    elif output.startswith('[SFBYKEY]'): # Should be client-side
+        process = output.split(' ')
+        if DEBUG: print('[ 以关键词模糊检索：' + process[1] + ' ]')
+        iostream = str(search_file_by_keyword(process[1]))
+        if DEBUG: print(iostream)
+        if DEBUG: print('[ 检索完成 ]')
+    elif output.startswith('[WXLIST]'):  # Should be client-side: List WeChat contacts
+        contacts = list()
+        iostream = contacts
+    elif output.startswith('[WXSEND]'):  # Should be client-side: Send WeChat message
+        try:
+            _, recipient, message = output.split(' ', 2)
+            send_msg(message, recipient)
+            iostream = f"已向 {recipient} 发送消息：{message}"
+        except ValueError:
+            iostream = "发送微信消息失败，请确保指令格式为 '[WXSEND] 接收人 消息内容'"
+    elif output.startswith('[WXGET]'):  # Should be client-side: Get latest WeChat messages
+        messages = get_msg()
+        if messages:
+            iostream = messages
+        else:
+            iostream = "没有找到最近的微信消息。"
     if iostream == '' or iostream == '[]':
         iostream = '无输出，操作可能成功完成。'
     action_cnt += 1
     add_message_to_ui('[执行了 '+str(action_cnt)+' 个动作]', "")
     return iostream
 
-def remove_extra_newlines(text):
-    """
-    去掉字符串中多余的换行符，只保留一个换行符。
-    """
-    return re.sub(r"\n+", "\n", text).strip()
+def toggle_tts():
+    """切换 TTS 启用/关闭状态"""
+    global tts_enabled
+    tts_enabled = not tts_enabled
+    if tts_enabled:
+        tts_button.configure(image=icons["📢"])
+    else:
+        tts_button.configure(image=icons["🔇"])
 
-def is_code_response(output):
-    """判断回复是否包含代码"""
-    return output.startswith('cmd /c') or output.startswith('```python')
+def reset_context():
+    """重置上下文"""
+    global chat_history
+    chat_history = []
+    chat_history_text.configure(state="normal")
+    chat_history_text.delete("1.0", "end")
+    chat_history_text.configure(state="disabled")
+    print("重置上下文")
 
 def upload_image():
     """上传图片文件"""
@@ -212,6 +204,10 @@ def upload_image():
         send_message(image_file=file_path)
 
 # 主程序
+
+if not check_process('Everything.exe'):
+    print('搜索服务未运行，正在启动。\n')
+    start_everything()
 
 root = customtkinter.CTk()
 customtkinter.set_appearance_mode("dark")
