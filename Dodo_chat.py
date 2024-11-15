@@ -11,7 +11,7 @@ from tkinter import filedialog
 from client_utils import *
 
 # Set this one to False if during testing
-CONNECT = False
+CONNECT = True
 DEBUG = True
 
 customtkinter.set_appearance_mode("light")
