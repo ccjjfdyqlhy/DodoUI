@@ -249,7 +249,7 @@ for text, path in icon_paths.items():
 
 # 聊天记录框
 chat_history_text = customtkinter.CTkTextbox(root, width=580, height=335, wrap="word", font=("Microsoft YaHei", 14), state="disabled")
-chat_history_text.pack(pady=(10, 0), padx=10)
+chat_history_text.pack(pady=(10, 0), padx=10, expand=True, fill="both")
 
 # 输入框和按钮框架
 input_frame = customtkinter.CTkFrame(root)
