@@ -160,8 +160,7 @@ def run_command_or_code(output,action_cnt):
     elif output.startswith('[WXSEND]'):  # Should be client-side: Send WeChat message
         try:
             _, recipient, message = output.split(' ', 2)
-            send_msg(message, recipient)
-            iostream = f"已向 {recipient} 发送消息：{message}"
+            iostream = send_msg(message, recipient)
         except ValueError:
             iostream = "发送微信消息失败，请确保指令格式为 '[WXSEND] 接收人 消息内容'"
     elif output.startswith('[WXGET]'):  # Should be client-side: Get latest WeChat messages

@@ -23,13 +23,24 @@ except pywintypes.error:
     wechat_useable = False
 
 def list():
-    return wx.GetAllFriends()
+    try:
+        return wx.GetAllFriends()
+    except pywintypes.error:
+        return 'ERROR: WeChat not logged in'
 
 def send_msg(msg, who):
-    wx.SendMsg(msg, who)
+    try:
+        wx.SendMsg(msg, who)
+        return 'OK'
+    except pywintypes.error:
+        return 'ERROR: WeChat not logged in'
 
 def get_msg():
-    msgs = wx.Ge
+    try:
+        msgs = wx.GetAllMessage(savepic=False)
+        return msgs
+    except pywintypes.error:
+        return 'ERROR: WeChat not logged in'
 
 def play_audio(file_path):
     """播放音频文件"""
