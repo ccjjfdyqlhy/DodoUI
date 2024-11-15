@@ -14,6 +14,7 @@ from PIL import Image
 from tkinter import filedialog
 from Dodo_config import *
 
+# Set this one to False if during testing
 CONNECT = True
 
 customtkinter.set_appearance_mode("light")
@@ -49,11 +50,11 @@ def play_audio(file_path):
 def close():
     root.destroy()
 
-def add_message_to_ui(message, sender):
+def add_message_to_ui(msg, sender):
     """将消息添加到 UI"""
+    line = remove_extra_newlines(msg)
     chat_history_text.configure(state="normal")  # 允许编辑
-    for line in message.split("\n"):
-        if line != "" and line != " " and line != "\n":
+    if line != "" and line != " " and line != "\n":
             if sender == "":
                 chat_history_text.insert("end", f"{line}\n")
             elif sender == "user":
@@ -101,20 +102,20 @@ def get_ai_response(message=None, audio_file=None, image_file=None, iostream='')
         last_output = chat_history[-1][1]
         action_cnt = 0
 
+        with open(file_path, "w", encoding="utf-8-sig") as f:
+            f.write(last_output)
+        chat_history[-1][1] = last_output
+        if last_output.endswith("？  。") or last_output.endswith("！  。") or last_output.endswith("？。") or last_output.endswith("！。") or last_output.endswith("?。") or last_output.endswith("!。"):
+            last_output = last_output[:-1]
+        
         # 判断回复是否包含代码
         if is_code_response(last_output):
             # 运行代码并获取输出
             io = run_command_or_code(last_output,action_cnt)
             if io:
                 get_ai_response(iostream=io)
-
-        with open(file_path, "w", encoding="utf-8-sig") as f:
-            f.write(last_output)
-
-        chat_history[-1][1] = last_output
-        if last_output.endswith("？  。") or last_output.endswith("！  。"):
-            last_output = last_output[:-1]
-        add_message_to_ui(last_output, "AI")
+        else:
+            add_message_to_ui(last_output, "AI")
 
         if tts_enabled:
             for file in result[2]:
@@ -122,7 +123,7 @@ def get_ai_response(message=None, audio_file=None, image_file=None, iostream='')
         else:
             pass
     except Exception as e:
-        ai_response = f"错误: {e}"
+        ai_response = f"警告：与DSN的连接可能中断。"
         chat_history[-1][1] = ai_response
         add_message_to_ui(ai_response, "系统")
 
@@ -191,6 +192,12 @@ def run_command_or_code(output,action_cnt):
     add_message_to_ui('[执行了 '+str(action_cnt)+' 个动作]', "")
     return iostream
 
+def remove_extra_newlines(text):
+    """
+    去掉字符串中多余的换行符，只保留一个换行符。
+    """
+    return re.sub(r"\n+", "\n", text).strip()
+
 def is_code_response(output):
     """判断回复是否包含代码"""
     return output.startswith('cmd /c') or output.startswith('```python')
@@ -217,7 +224,7 @@ if CONNECT:
     try:
         client = Client(DSN_IP)
     except Exception as e:
-        print("无法连接到 DSN 后端。错误信息：" + str(e)+'\n要以测试模式启动，请设置CONNECT = False。')
+        print("无法与DSN建立连接。错误信息：" + str(e)+'\n要以测试模式启动，请设置CONNECT = False。')
 
 root.protocol("WM_DELETE_WINDOW", close)
 
