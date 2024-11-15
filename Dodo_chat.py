@@ -11,7 +11,7 @@ from tkinter import filedialog
 from client_utils import *
 
 # Set this one to False if during testing
-CONNECT = True
+CONNECT = False
 DEBUG = True
 
 customtkinter.set_appearance_mode("light")
@@ -208,19 +208,26 @@ if not check_process('Everything.exe'):
     print('搜索服务未运行，正在启动。\n')
     start_everything()
 
+if CONNECT:
+    try:
+        client = Client(DSN_IP)
+    except Exception as e:
+        root = tk.Tk()
+        root.overrideredirect(True)
+        root.attributes('-topmost','true')
+        root.geometry("300x130+100+100")
+        tk.Label(root, text='错误').pack()
+        tk.Label(root, text="无法与 DSN 建立连接。错误信息：" + str(e)+'\n请检查配置文件中的IP地址是否正确设置。\n要以测试模式启动UI，请设置CONNECT = False。').pack()
+        tk.Button(root, text=" 退出 ", command=lambda:exit(1)).pack()
+        tk.Label(root, text='Dodo UI Interaction').pack(anchor='sw')
+        root.mainloop()
+
 root = customtkinter.CTk()
 customtkinter.set_appearance_mode("dark")
 customtkinter.set_default_color_theme("dark-blue")
 pywinstyles.apply_style(root, "acrylic")
 root.geometry("600x400")
 root.title("Interaction")
-
-if CONNECT:
-    try:
-        client = Client(DSN_IP)
-    except Exception as e:
-        print("无法与DSN建立连接。错误信息：" + str(e)+'\n要以测试模式启动，请设置CONNECT = False。')
-
 root.protocol("WM_DELETE_WINDOW", close)
 
 # 图标
@@ -252,7 +259,7 @@ input_frame.pack(side="bottom", fill="x", pady=(0, 10), padx=10)
 user_input = customtkinter.CTkEntry(input_frame, width=400, height=35,
                                     fg_color="transparent", text_color="grey70",
                                     font=("Microsoft YaHei", 14),
-                                    placeholder_text="输入消息...")
+                                    placeholder_text="键入消息...")
 user_input.pack(side="left", padx=(0, 10), expand=True, fill="x")
 
 # 发送按钮
